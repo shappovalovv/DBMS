@@ -4,21 +4,6 @@
 #include <sstream>
 using namespace std;
 
-// переопределение функции to_string для string и char
-// для корректной работы класса (функции перевода в строку) с этими типами
-
-// для строки просто возвращаем ее же
-string to_string(string str) {
-    return str;
-}
-
-// для символа создаем строку с этим единственным символом
-string to_string(char c) {
-    stringstream ss;
-    ss << c;
-    return ss.str();
-}
-
 // предварительное объявление дружественного шаблонного оператора
 template <class T>
 class List;
@@ -34,16 +19,21 @@ private:
         T data;
         Node *next;
         Node *prev;
+        Node(const T& data, Node *next, Node *prev) : data(data), next(next), prev(prev) {
+            
+        }
     };
-    Node *first, *last;
+    Node *first, *last; // первый и последний элементы
 public:
     List();
     ~List();
-    void push_front(T);
-    void push_back(T);
-    T pop_front();
-    T pop_back();
-    string toString();
+    void push_front(const T&);
+    void push_back(const T&);
+    void pop_front();
+    void pop_back();
+    const T& front();
+    const T& back();
+    string toString() const;
     friend ostream& operator<< <>(ostream&, const List&);
     // итератор для прохождения по элементам
     class iterator {
@@ -63,8 +53,8 @@ public:
         friend class List;
     };
     // функции для получения итератора на начало и конец
-    iterator begin();
-    iterator end();
+    iterator cbegin();
+    iterator cend();
     
     // проверка на пустоту
     bool isEmpty() {return first == nullptr;}
@@ -73,7 +63,7 @@ public:
 // конструктор
 template <class T>
 List<T>::List() {
-    first = last = nullptr;
+    first = last = nullptr; // создаем пустой список
 }
 
 // деструктор
@@ -93,12 +83,9 @@ List<T>::~List() {
 
 // добавление в начало списка
 template <class T>
-void List<T>::push_front(T data) {
+void List<T>::push_front(const T& data) {
     // создаем новый узел
-    Node *node = new Node;
-    node->data = data;
-    node->prev = nullptr;
-    node->next = first;
+    Node *node = new Node(data, first, nullptr);
     if (first) {
         first->prev = node;
         first = node;
@@ -110,12 +97,9 @@ void List<T>::push_front(T data) {
 
 // добавление в конец списка
 template <class T>
-void List<T>::push_back(T data) {
+void List<T>::push_back(const T& data) {
     // создаем новый узел
-    Node *node = new Node;
-    node->data = data;
-    node->prev = last;
-    node->next = nullptr;
+    Node *node = new Node(data, nullptr, last);
     if (first) {
         last->next = node;
         last = node;
@@ -127,8 +111,7 @@ void List<T>::push_back(T data) {
 
 // удаление из начала
 template <class T>
-T List<T>::pop_front() {
-    T data = first->data;
+void List<T>::pop_front() {
     Node *toDel = first;
     first = first->next;
     if (!first)
@@ -136,13 +119,11 @@ T List<T>::pop_front() {
     else
         first->prev = nullptr;
     delete toDel;
-    return data;
 }
 
 // удаление из конца
 template <class T>
-T List<T>::pop_back() {
-    T data = last->data;
+void List<T>::pop_back() {
     Node *toDel = last;
     last = last->prev;
     if (!last)
@@ -150,17 +131,28 @@ T List<T>::pop_back() {
     else
         last->next = nullptr;
     delete toDel;
-    return data;
+}
+
+// доступ к первому
+template <class T>
+const T& List<T>::front() {
+    return first->data;
+}
+
+// доступ к последнему
+template <class T>
+const T& List<T>::back() {
+    return last->data;
 }
 
 // перевод в строку
 template <class T>
-string List<T>::toString() {
+string List<T>::toString() const {
     Node *current = first;
     stringstream ss;
     while (current) {
         // переводим данные текущего элемента в строку и добавляем к результату
-        ss << to_string(current->data) << " ";
+        ss << current->data << " ";
         current = current->next;
     }
     return ss.str();
@@ -245,7 +237,7 @@ bool List<T>::iterator::operator!=(const iterator& it) {
 
 // получение итератора на начало списка
 template <class T>
-typename List<T>::iterator List<T>::begin() {
+typename List<T>::iterator List<T>::cbegin() {
     // создаем итератор с указателем на перывый элемент
     iterator it;
     it.current = first;
@@ -254,7 +246,7 @@ typename List<T>::iterator List<T>::begin() {
 
 // получение итератора на конец списка (элемент за последним)
 template <class T>
-typename List<T>::iterator List<T>::end() {
+typename List<T>::iterator List<T>::cend() {
     // элемент за последним - нулевой указатель
     iterator it;
     it.current = nullptr;
@@ -264,9 +256,9 @@ typename List<T>::iterator List<T>::end() {
 // потоковый вывод
 template <class T>
 ostream& operator<<(ostream& os, const List<T>& list) {
-    typename List<T>::Node *current = list.first;
+    typename List<T>::Node *current = list.first; // указатель для прохода по списку
     while (current) {
-        os << to_string(current->data) << " ";
+        os << current->data << " ";
         current = current->next;
     }
     return os;
@@ -279,8 +271,8 @@ void test() {
     List<T> list;
     int menu;
     T data;
-    ofstream file;
-    string filename = "list.txt";
+    ofstream file;  
+    string filename = "list.txt"; // имя файла для вывода
     do {
         // вывод меню
         cout << "1 - добавить элемент в начало списка" << endl;
@@ -295,55 +287,57 @@ void test() {
         cin >> menu;
         // выбор по меню
         switch (menu) {
-            case 1:
+            case 1: // добавление в начало
                 cout << "Введите значение: ";
                 cin >> data;
                 list.push_front(data);
                 break;
                 
-            case 2:
+            case 2: // добавление в конец
                 cout << "Введите значение: ";
                 cin >> data;
                 list.push_back(data);
                 break;
                 
-            case 3:
+            case 3: // удаление из начала
                 if (list.isEmpty())
                     cout << "Список пуст" << endl;
                 else {
-                    data = list.pop_front();
+                    data = list.front();
+                    list.pop_front();
                     cout << "Удален элемент: " << data << endl;
                 }
                 break;
                 
-            case 4:
+            case 4: // удаление из конца
                 if (list.isEmpty())
                     cout << "Список пуст" << endl;
                 else {
-                    data = list.pop_back();
+                    data = list.back();
+                    list.pop_back();
                     cout << "Удален элемент: " << data << endl;
                 }
                 break;
                 
-            case 5:
+            case 5: // получение строки
                 cout << "Список в виде строки:" << endl;
                 cout << list.toString() << endl;
                 break;
                 
-            case 6:
+            case 6: // обход с помощью итератора
                 cout << "Обход списка с помощью итератора:" << endl;
                 // проход по списку с помощью итератора в цикле
-                for (typename List<T>::iterator it = list.begin(); it != list.end(); it++) {
+                for (typename List<T>::iterator it = list.cbegin(); it != list.cend(); it++) {
                     cout << *it << endl;
                 }
                 break;
                 
-            case 7:
+            case 7: // вывод на экран
                 cout << list << endl;
                 break;
                 
-            case 8:
-                file.open(filename);
+            case 8: // вывод в файл
+                file.open(filename); // открываем файл
                 if (file.is_open()) {
                     file << list << endl;
                     file.close();
@@ -356,13 +350,13 @@ void test() {
             default:
                 break;
         }
-    } while (menu != 0);
+    } while (menu != 0); // завершаем цикл при вводе 0
 }
 
 int main()
 {
     setlocale(LC_ALL, "Russian");
-
+    
     // выбираем тип для тестирования
     int type;
     cout << "Выбор типа данных: 1 - int, 2 - double, 3 - char, 4 - string" << endl;
@@ -371,16 +365,16 @@ int main()
     // выбор в зависимости от ввода пользователя
     // вызываем шаблонную функцию с соответствующим типом
     switch (type) {
-        case 1:
+        case 1: // целый
             test<int>();
             break;
-        case 2:
+        case 2: // вещественный
             test<double>();
             break;
-        case 3:
+        case 3: // символьный
             test<char>();
             break;
-        case 4:
+        case 4: // строка
             test<string>();
             break;
         default:
@@ -389,3 +383,4 @@ int main()
     
     return 0;
 }
+
